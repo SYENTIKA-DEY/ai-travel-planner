@@ -121,13 +121,13 @@ export default function Home() {
 
     // Title
     pdf.setFontSize(24);
-    pdf.setFont(undefined, "bold");
+    pdf.setFont("helvetica", "bold");
     pdf.text(trip.destination, pageWidth / 2, yPosition, { align: "center" });
     yPosition += 10;
 
     // Trip Summary
     pdf.setFontSize(11);
-    pdf.setFont(undefined, "normal");
+    pdf.setFont("helvetica", "normal");
     pdf.text(`Duration: ${trip.days?.length || 0} days`, 15, yPosition);
     yPosition += 7;
     pdf.text(`Total Budget: ₹${trip.totalBudget?.toLocaleString("en-IN")}`, 15, yPosition);
@@ -136,12 +136,12 @@ export default function Home() {
     // Budget Breakdown
     if (trip.breakdown) {
       pdf.setFontSize(14);
-      pdf.setFont(undefined, "bold");
+      pdf.setFont("helvetica", "bold");
       pdf.text("Budget Breakdown", 15, yPosition);
       yPosition += 8;
 
       pdf.setFontSize(10);
-      pdf.setFont(undefined, "normal");
+      pdf.setFont("helvetica", "normal");
       const breakdown = [
         `🏨 Accommodation: ₹${trip.breakdown.accommodation?.toLocaleString("en-IN") || 0}`,
         `🍽️  Food: ₹${trip.breakdown.food?.toLocaleString("en-IN") || 0}`,
@@ -169,7 +169,7 @@ export default function Home() {
       }
 
       pdf.setFontSize(14);
-      pdf.setFont(undefined, "bold");
+      pdf.setFont("helvetica", "bold");
       const dayTitle = dayData.theme
         ? `Day ${dayIndex + 1}: ${dayData.theme}`
         : `Day ${dayIndex + 1}`;
@@ -182,7 +182,7 @@ export default function Home() {
       ) || 0;
 
       pdf.setFontSize(10);
-      pdf.setFont(undefined, "normal");
+      pdf.setFont("helvetica", "normal");
       pdf.text(`Estimated Cost: ₹${dailyTotal.toLocaleString("en-IN")}`, 20, yPosition);
       yPosition += 7;
 
@@ -193,12 +193,12 @@ export default function Home() {
           yPosition = 15;
         }
 
-        pdf.setFont(undefined, "bold");
+        pdf.setFont("helvetica", "bold");
         pdf.setFontSize(10);
         pdf.text(`${activity.time} - ${activity.activity}`, 20, yPosition);
         yPosition += 6;
 
-        pdf.setFont(undefined, "normal");
+        pdf.setFont("helvetica", "normal");
         pdf.setFontSize(9);
         pdf.text(`Cost: ₹${activity.estimatedCost?.toLocaleString("en-IN") || 0}`, 25, yPosition);
         yPosition += 6;
