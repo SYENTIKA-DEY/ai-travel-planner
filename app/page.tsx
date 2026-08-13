@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useRef } from "react";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 type TripStyle = "relaxed" | "adventure" | "culture" | "luxury";
 
@@ -104,15 +106,109 @@ export default function Home() {
     setDays("5");
   }
 
-  function handleSaveTrip() {
+  async function handleSaveTrip() {
     if (!trip) return;
-    const dataStr = JSON.stringify(trip, null, 2);
-    const dataBlob = new Blob([dataStr], { type: "application/json" });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${trip.destination}-trip.json`;
-    link.click();
+
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+    });
+
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    let yPosition = 15;
+
+    // Title
+    pdf.setFontSize(24);
+    pdf.setFont(undefined, "bold");
+    pdf.text(trip.destination, pageWidth / 2, yPosition, { align: "center" });
+    yPosition += 10;
+
+    // Trip Summary
+    pdf.setFontSize(11);
+    pdf.setFont(undefined, "normal");
+    pdf.text(`Duration: ${trip.days?.length || 0} days`, 15, yPosition);
+    yPosition += 7;
+    pdf.text(`Total Budget: ₹${trip.totalBudget?.toLocaleString("en-IN")}`, 15, yPosition);
+    yPosition += 12;
+
+    // Budget Breakdown
+    if (trip.breakdown) {
+      pdf.setFontSize(14);
+      pdf.setFont(undefined, "bold");
+      pdf.text("Budget Breakdown", 15, yPosition);
+      yPosition += 8;
+
+      pdf.setFontSize(10);
+      pdf.setFont(undefined, "normal");
+      const breakdown = [
+        `🏨 Accommodation: ₹${trip.breakdown.accommodation?.toLocaleString("en-IN") || 0}`,
+        `🍽️  Food: ₹${trip.breakdown.food?.toLocaleString("en-IN") || 0}`,
+        `🎭 Activities: ₹${trip.breakdown.activities?.toLocaleString("en-IN") || 0}`,
+        `🚗 Transport: ₹${trip.breakdown.transport?.toLocaleString("en-IN") || 0}`,
+      ];
+
+      breakdown.forEach((line) => {
+        if (yPosition > pageHeight - 20) {
+          pdf.addPage();
+          yPosition = 15;
+        }
+        pdf.text(line, 20, yPosition);
+        yPosition += 6;
+      });
+    }
+
+    yPosition += 5;
+
+    // Daily Itinerary
+    trip.days?.forEach((dayData, dayIndex) => {
+      if (yPosition > pageHeight - 30) {
+        pdf.addPage();
+        yPosition = 15;
+      }
+
+      pdf.setFontSize(14);
+      pdf.setFont(undefined, "bold");
+      const dayTitle = dayData.theme
+        ? `Day ${dayIndex + 1}: ${dayData.theme}`
+        : `Day ${dayIndex + 1}`;
+      pdf.text(dayTitle, 15, yPosition);
+      yPosition += 8;
+
+      const dailyTotal = dayData.activities?.reduce(
+        (sum, a) => sum + (a.estimatedCost || 0),
+        0
+      ) || 0;
+
+      pdf.setFontSize(10);
+      pdf.setFont(undefined, "normal");
+      pdf.text(`Estimated Cost: ₹${dailyTotal.toLocaleString("en-IN")}`, 20, yPosition);
+      yPosition += 7;
+
+      // Activities
+      dayData.activities?.forEach((activity) => {
+        if (yPosition > pageHeight - 15) {
+          pdf.addPage();
+          yPosition = 15;
+        }
+
+        pdf.setFont(undefined, "bold");
+        pdf.setFontSize(10);
+        pdf.text(`${activity.time} - ${activity.activity}`, 20, yPosition);
+        yPosition += 6;
+
+        pdf.setFont(undefined, "normal");
+        pdf.setFontSize(9);
+        pdf.text(`Cost: ₹${activity.estimatedCost?.toLocaleString("en-IN") || 0}`, 25, yPosition);
+        yPosition += 6;
+      });
+
+      yPosition += 5;
+    });
+
+    // Save the PDF
+    pdf.save(`${trip.destination}-trip.pdf`);
   }
 
   const tripData = trip?.days?.[activeDay];
@@ -169,7 +265,7 @@ export default function Home() {
                   {/* Budget Input with Live Indicator */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <label className="text-sm font-semibold text-foreground">Budget (USD)</label>
+                      <label className="text-sm font-semibold text-foreground">Budget (Rupees)</label>
                       {budget && (
                         <span className={`text-xs font-bold px-3 py-1 rounded-full bg-gradient-to-r ${budgetTier.color} text-white`}>
                           {budgetTier.label}
@@ -332,24 +428,45 @@ export default function Home() {
 
               {/* Day Tabs */}
               {trip.days && trip.days.length > 0 ? (
-                <div className="mb-8 overflow-x-auto">
-                  <div className="flex gap-2 pb-2 min-w-max">
-                    {trip.days?.map((dayData, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setActiveDay(idx)}
-                        className={`px-6 py-3 rounded-lg font-medium transition whitespace-nowrap ${
-                          activeDay === idx
-                            ? "bg-gradient-to-r from-primary-terracotta to-primary-teal text-white shadow-lg"
-                            : "bg-white/60 backdrop-blur-sm text-foreground hover:bg-white/80 border border-white/20"
-                        }`}
-                      >
-                        <div className="text-sm font-semibold">Day {idx + 1}</div>
-                        {dayData.theme && (
-                          <div className="text-xs text-gray-600 mt-1">{dayData.theme}</div>
-                        )}
-                      </button>
-                    )) || null}
+                <div className="mb-12 overflow-x-auto">
+                  <div className="flex gap-3 pb-4 min-w-max">
+                    {trip.days?.map((dayData, idx) => {
+                      const dailyTotal = dayData.activities?.reduce(
+                        (sum, a) => sum + (a.estimatedCost || 0),
+                        0
+                      ) || 0;
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => setActiveDay(idx)}
+                          className={`px-8 py-4 rounded-2xl font-bold transition-all transform hover:scale-105 whitespace-nowrap border-2 ${
+                            activeDay === idx
+                              ? "bg-gradient-to-r from-primary-terracotta to-primary-teal text-white shadow-2xl border-transparent scale-105"
+                              : "bg-white/60 backdrop-blur-sm text-foreground hover:bg-white/80 border-white/40 hover:shadow-lg"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className={`text-2xl font-bold ${
+                              activeDay === idx 
+                                ? "text-white" 
+                                : "bg-gradient-to-r from-primary-terracotta to-primary-teal bg-clip-text text-transparent"
+                            }`}>
+                              Day {idx + 1}
+                            </span>
+                            <div className="text-left">
+                              {dayData.theme && (
+                                <div className={`text-sm font-semibold ${activeDay === idx ? "text-white" : "text-primary-terracotta"}`}>
+                                  {dayData.theme}
+                                </div>
+                              )}
+                              <div className={`text-xs font-medium ${activeDay === idx ? "text-white/90" : "text-gray-600"}`}>
+                                ₹{dailyTotal.toLocaleString("en-IN")}
+                              </div>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    }) || null}
                   </div>
                 </div>
               ) : (
@@ -363,52 +480,62 @@ export default function Home() {
 
               {/* Day Details Card */}
               {tripData && (
-                <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-8 border border-white/20 animate-in fade-in slide-in-from-top-4 duration-500">
-                  <div className="flex items-center justify-between mb-8">
+                <div className="bg-gradient-to-br from-white via-white/90 to-white/80 backdrop-blur-sm rounded-3xl shadow-2xl p-10 border-2 border-white/40 animate-in fade-in slide-in-from-top-4 duration-500">
+                  <div className="flex items-center justify-between mb-10">
                     <div>
-                      <h3 className="text-3xl font-serif font-bold text-foreground">
-                        Day {activeDay + 1}
-                        {tripData.theme && <span className="text-primary-terracotta ml-3">{tripData.theme}</span>}
-                      </h3>
-                      <p className="text-text-light mt-2">Estimated: ₹{totalDailyCost.toLocaleString('en-IN')}</p>
+                      <div className="flex items-center gap-4 mb-3">
+                        <div className="bg-gradient-to-r from-primary-terracotta to-primary-teal rounded-2xl px-6 py-3 transform -rotate-3">
+                          <h3 className="text-5xl font-serif font-black text-white">
+                            Day {activeDay + 1}
+                          </h3>
+                        </div>
+                      </div>
+                      {tripData.theme && (
+                        <p className="text-2xl font-semibold text-primary-terracotta ml-1">
+                          {tripData.theme}
+                        </p>
+                      )}
+                      <p className="text-lg text-text-light mt-3 font-semibold">
+                        💰 Estimated: ₹{totalDailyCost.toLocaleString('en-IN')}
+                      </p>
                     </div>
                   </div>
 
-                  <div className="space-y-4">
+                  <div className="space-y-5">
                     {tripData.activities?.length > 0 ? (
                       tripData.activities.map((activity, idx) => (
                         <div
                           key={idx}
-                          className="bg-gradient-to-r from-accent-cream to-gray-50 rounded-xl p-6 border-l-4 border-primary-terracotta hover:shadow-lg transition"
+                          className="bg-gradient-to-r from-accent-cream via-white to-gray-50 rounded-2xl p-7 border-l-8 border-primary-terracotta hover:shadow-xl hover:scale-102 transition transform duration-200"
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                <span className="text-sm font-bold px-3 py-1 rounded-full bg-primary-terracotta text-white">
+                              <div className="flex items-center gap-3 mb-3">
+                                <span className="text-lg font-bold px-4 py-2 rounded-xl bg-gradient-to-r from-primary-terracotta to-orange-400 text-white shadow-md">
                                   {activity.time}
                                 </span>
-                                <span className="text-xs text-text-light">
-                                ₹{activity.estimatedCost.toLocaleString('en-IN')}
+                                <span className="text-sm font-bold text-primary-terracotta bg-yellow-50 px-4 py-2 rounded-lg">
+                                  ₹{activity.estimatedCost.toLocaleString('en-IN')}
                                 </span>
                               </div>
-                              <p className="text-lg font-semibold text-foreground">{activity.activity}</p>
+                              <p className="text-xl font-bold text-foreground leading-relaxed">{activity.activity}</p>
                             </div>
                           </div>
                         </div>
                       ))
                     ) : (
-                      <p className="text-text-light text-center py-8">No activities planned for this day</p>
+                      <p className="text-text-light text-center py-12 text-lg">No activities planned for this day</p>
                     )}
                   </div>
 
                   {/* Progress indicator */}
-                  <div className="mt-8 flex items-center justify-between text-sm text-text-light">
-                    <span>
+                  <div className="mt-10 flex items-center justify-between text-sm font-semibold text-text-light">
+                    <span className="text-base">
                       Day {activeDay + 1} of {trip.days?.length || 0}
                     </span>
-                    <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div className="w-48 h-3 bg-gradient-to-r from-gray-200 to-gray-300 rounded-full overflow-hidden shadow-inner">
                       <div
-                        className="h-full bg-gradient-to-r from-primary-terracotta to-primary-teal transition-all duration-300"
+                        className="h-full bg-gradient-to-r from-primary-terracotta to-primary-teal transition-all duration-300 shadow-lg"
                         style={{
                           width: `${((activeDay + 1) / (trip.days?.length || 1)) * 100}%`,
                         }}
