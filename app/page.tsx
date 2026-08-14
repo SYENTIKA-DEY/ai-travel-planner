@@ -143,11 +143,16 @@ export default function Home() {
       const labelText = `${label}:`;
       const valueText = `₹${formatCurrency(value)}`;
       const leftX = 18;
-      const rightX = pageWidth - 18 - pdf.getTextWidth(valueText);
       const labelWidth = pdf.getTextWidth(labelText);
+      const rightX = pageWidth - 18 - pdf.getTextWidth(valueText);
 
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(12);
       pdf.text(labelText, leftX, y);
-      pdf.text(valueText, Math.max(rightX, leftX + labelWidth + 12), y);
+
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(14);
+      pdf.text(valueText, Math.max(rightX, leftX + labelWidth + 10), y);
     };
 
     // Title
@@ -219,8 +224,9 @@ export default function Home() {
       pdf.text("Estimated Cost:", 20, yPosition);
       yPosition += 7;
       pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(14);
       pdf.text(`₹${formatCurrency(dailyTotal)}`, Math.max(20, pageWidth - 20 - pdf.getTextWidth(`₹${formatCurrency(dailyTotal)}`)), yPosition);
-      yPosition += 8;
+      yPosition += 9;
 
       // Activities
       dayData.activities?.forEach((activity) => {
@@ -241,8 +247,9 @@ export default function Home() {
         pdf.text("Cost:", 25, yPosition);
         yPosition += 5;
         pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(13);
         pdf.text(`₹${formatCurrency(activity.estimatedCost)}`, Math.max(25, pageWidth - 25 - pdf.getTextWidth(`₹${formatCurrency(activity.estimatedCost)}`)), yPosition);
-        yPosition += 7;
+        yPosition += 8;
       });
 
       yPosition += 5;

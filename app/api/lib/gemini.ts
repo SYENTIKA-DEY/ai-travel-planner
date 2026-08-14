@@ -70,13 +70,14 @@ export async function generateTrip(
 
   const prompt = `Plan a ${days}-day ${style} trip to ${destination} with a total budget of ₹${budget} (Indian Rupees).
 
-Requirements:
-- Create a detailed itinerary with activities for each day
-- Include 3-5 activities per day with specific time slots
-- Provide realistic cost estimates in INR for each activity
-- Each activity must have: time slot, activity name, and estimated cost
-- Divide the total budget (₹${budget}) among accommodation, food, activities, and transport
-- Make sure the sum of all daily activity costs and other expenses totals close to ₹${budget}
+CRITICAL REQUIREMENTS:
+- Create EXACTLY ${days} day entries in the JSON array. Do NOT return fewer than ${days} days.
+- Each day must be a separate object in the days array, numbered from 1 to ${days}.
+- Include 3-5 activities per day with specific time slots.
+- Provide realistic cost estimates in INR for each activity.
+- Each activity must have: time slot, activity name, and estimated cost.
+- Divide the total budget (₹${budget}) among accommodation, food, activities, and transport.
+- Make sure the sum of all daily costs and other expenses totals close to ₹${budget}.
 - For ${style} trips, adjust recommendations accordingly:
   * Relaxed: Focus on comfort and leisure activities
   * Adventure: Include outdoor and thrilling activities
@@ -103,5 +104,73 @@ Return ONLY the JSON object with no additional text or markdown.`;
     throw new Error("Invalid response format from AI");
   }
 
-  return data as TripResponse;
+  const normalizedDays = Array.from({ length: days }, (_, index) => {
+    const existingDay = data.days[index];
+
+    if (existingDay && typeof existingDay === "object") {
+      return {
+        ...existingDay,
+        day: index + 1,
+        theme: existingDay.theme || `Day ${index + 1}`,
+        activities: Array.isArray(existingDay.activities) && existingDay.activities.length > 0
+          ? existingDay.activities.map((activity: any, activityIndex: number) => ({
+              time: activity.time || `${activityIndex + 1}:00 PM`,
+              activity: activity.activity || `Explore ${destination}`,
+              estimatedCost: Number(activity.estimatedCost) || 0,
+            }))
+          : [
+              {
+                time: "9:00 AM - 12:00 PM",
+                activity: `Explore ${destination}`,
+                estimatedCost: Math.round((budget / Math.max(days, 1)) * 0.35),
+              },
+              {
+                time: "1:00 PM - 4:00 PM",
+                activity: `Local highlights for ${style} travel`,
+                estimatedCost: Math.round((budget / Math.max(days, 1)) * 0.3),
+              },
+              {
+                time: "7:00 PM - 9:00 PM",
+                activity: `Evening experience in ${destination}`,
+                estimatedCost: Math.round((budget / Math.max(days, 1)) * 0.35),
+              },
+            ],
+      };
+    }
+
+    return {
+      day: index + 1,
+      theme: `Day ${index + 1}`,
+      activities: [
+        {
+          time: "9:00 AM - 12:00 PM",
+          activity: `Explore ${destination}`,
+          estimatedCost: Math.round((budget / Math.max(days, 1)) * 0.35),
+        },
+        {
+          time: "1:00 PM - 4:00 PM",
+          activity: `Local highlights for ${style} travel`,
+          estimatedCost: Math.round((budget / Math.max(days, 1)) * 0.3),
+        },
+        {
+          time: "7:00 PM - 9:00 PM",
+          activity: `Evening experience in ${destination}`,
+          estimatedCost: Math.round((budget / Math.max(days, 1)) * 0.35),
+        },
+      ],
+    };
+  });
+
+  return {
+    ...data,
+    destination: data.destination || destination,
+    totalBudget: Number(data.totalBudget) || budget,
+    days: normalizedDays,
+    breakdown: data.breakdown || {
+      accommodation: Math.round(budget * 0.35),
+      food: Math.round(budget * 0.25),
+      activities: Math.round(budget * 0.25),
+      transport: Math.round(budget * 0.15),
+    },
+  } as TripResponse;
 }
