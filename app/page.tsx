@@ -139,6 +139,17 @@ export default function Home() {
     const pageWidth = pdf.internal.pageSize.getWidth();
     let yPosition = 15;
 
+    const drawCurrencyRow = (label: string, value: number | string, y: number) => {
+      const labelText = `${label}:`;
+      const valueText = `₹${formatCurrency(value)}`;
+      const leftX = 18;
+      const rightX = pageWidth - 18 - pdf.getTextWidth(valueText);
+      const labelWidth = pdf.getTextWidth(labelText);
+
+      pdf.text(labelText, leftX, y);
+      pdf.text(valueText, Math.max(rightX, leftX + labelWidth + 12), y);
+    };
+
     // Title
     pdf.setFontSize(24);
     pdf.setFont("helvetica", "bold");
@@ -160,23 +171,24 @@ export default function Home() {
       pdf.text("Budget Breakdown", 15, yPosition);
       yPosition += 8;
 
-      pdf.setFontSize(10);
+      pdf.setFontSize(12);
       pdf.setFont("helvetica", "normal");
       const breakdown = [
-        `Accommodation: ₹${formatCurrency(trip.breakdown.accommodation)}`,
-        `Food: ₹${formatCurrency(trip.breakdown.food)}`,
-        `Activities: ₹${formatCurrency(trip.breakdown.activities)}`,
-        `Transport: ₹${formatCurrency(trip.breakdown.transport)}`,
+        { label: "Accommodation", value: trip.breakdown.accommodation },
+        { label: "Food", value: trip.breakdown.food },
+        { label: "Activities", value: trip.breakdown.activities },
+        { label: "Transport", value: trip.breakdown.transport },
       ];
 
-      breakdown.forEach((line) => {
-        if (yPosition > pageHeight - 20) {
+      breakdown.forEach((item) => {
+        if (yPosition > pageHeight - 28) {
           pdf.addPage();
           yPosition = 15;
         }
-        const wrappedLines = pdf.splitTextToSize(line, 170);
-        pdf.text(wrappedLines, 20, yPosition);
-        yPosition += wrappedLines.length * 6;
+
+        pdf.setFont("helvetica", "normal");
+        drawCurrencyRow(item.label, item.value, yPosition);
+        yPosition += 8;
       });
     }
 
@@ -204,12 +216,15 @@ export default function Home() {
 
       pdf.setFontSize(10);
       pdf.setFont("helvetica", "normal");
-      pdf.text(`Estimated Cost: ₹${formatCurrency(dailyTotal)}`, 20, yPosition);
+      pdf.text("Estimated Cost:", 20, yPosition);
       yPosition += 7;
+      pdf.setFont("helvetica", "bold");
+      pdf.text(`₹${formatCurrency(dailyTotal)}`, Math.max(20, pageWidth - 20 - pdf.getTextWidth(`₹${formatCurrency(dailyTotal)}`)), yPosition);
+      yPosition += 8;
 
       // Activities
       dayData.activities?.forEach((activity) => {
-        if (yPosition > pageHeight - 15) {
+        if (yPosition > pageHeight - 20) {
           pdf.addPage();
           yPosition = 15;
         }
@@ -223,8 +238,11 @@ export default function Home() {
 
         pdf.setFont("helvetica", "normal");
         pdf.setFontSize(9);
-        pdf.text(`Cost: ₹${formatCurrency(activity.estimatedCost)}`, 25, yPosition);
-        yPosition += 6;
+        pdf.text("Cost:", 25, yPosition);
+        yPosition += 5;
+        pdf.setFont("helvetica", "bold");
+        pdf.text(`₹${formatCurrency(activity.estimatedCost)}`, Math.max(25, pageWidth - 25 - pdf.getTextWidth(`₹${formatCurrency(activity.estimatedCost)}`)), yPosition);
+        yPosition += 7;
       });
 
       yPosition += 5;
@@ -277,7 +295,6 @@ export default function Home() {
                       placeholder="How many days?"
                       type="number"
                       min="1"
-                      max="30"
                       value={days}
                       onChange={(e) => setDays(e.target.value)}
                       required

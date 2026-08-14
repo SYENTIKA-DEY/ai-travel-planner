@@ -32,8 +32,8 @@ export function validateTripRequest(data: any): ValidationResult {
   // Validate days
   if (!data.days || typeof data.days !== "number") {
     errors.push("Days is required and must be a number");
-  } else if (data.days < 1 || data.days > 30) {
-    errors.push("Days must be between 1 and 30");
+  } else if (data.days < 1) {
+    errors.push("Days must be at least 1");
   }
 
   // Validate style (optional)
