@@ -23,12 +23,10 @@ export function validateTripRequest(data: any): ValidationResult {
   }
 
   // Validate budget
-  if (!data.budget || typeof data.budget !== "number") {
-    errors.push("Budget is required and must be a number");
-  } else if (data.budget < 1000) {
-    errors.push("Budget must be at least ₹1000");
-  } else if (data.budget > 10000000) {
-    errors.push("Budget must be less than ₹10,000,000");
+  if (typeof data.budget !== "number" || !Number.isFinite(data.budget)) {
+    errors.push("Budget is required and must be a valid number");
+  } else if (data.budget <= 0) {
+    errors.push("Budget must be greater than 0");
   }
 
   // Validate days

@@ -143,10 +143,10 @@ export default function Home() {
       pdf.setFontSize(10);
       pdf.setFont("helvetica", "normal");
       const breakdown = [
-        `🏨 Accommodation: ₹${trip.breakdown.accommodation?.toLocaleString("en-IN") || 0}`,
-        `🍽️  Food: ₹${trip.breakdown.food?.toLocaleString("en-IN") || 0}`,
-        `🎭 Activities: ₹${trip.breakdown.activities?.toLocaleString("en-IN") || 0}`,
-        `🚗 Transport: ₹${trip.breakdown.transport?.toLocaleString("en-IN") || 0}`,
+        `Accommodation: ₹${trip.breakdown.accommodation?.toLocaleString("en-IN") || 0}`,
+        `Food: ₹${trip.breakdown.food?.toLocaleString("en-IN") || 0}`,
+        `Activities: ₹${trip.breakdown.activities?.toLocaleString("en-IN") || 0}`,
+        `Transport: ₹${trip.breakdown.transport?.toLocaleString("en-IN") || 0}`,
       ];
 
       breakdown.forEach((line) => {
