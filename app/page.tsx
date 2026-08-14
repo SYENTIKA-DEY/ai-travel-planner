@@ -139,19 +139,26 @@ export default function Home() {
     const pageWidth = pdf.internal.pageSize.getWidth();
     let yPosition = 15;
 
-    const drawCurrencyRow = (label: string, value: number | string, y: number) => {
+    const drawCurrencyRow = (label: string, value: number | string, y: number, labelSize = 12, amountSize = 14) => {
       const labelText = `${label}:`;
       const valueText = `₹${formatCurrency(value)}`;
       const labelX = 18;
-      const valueX = Math.max(120, pageWidth - 18 - pdf.getTextWidth(valueText));
 
       pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(12);
+      pdf.setFontSize(labelSize);
       pdf.text(labelText, labelX, y);
 
       pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(14);
-      pdf.text(valueText, valueX, y);
+      pdf.setFontSize(amountSize);
+      pdf.text(valueText, pageWidth - 18, y, { align: "right" });
+    };
+
+    const drawRightAlignedAmount = (amount: number | string, y: number, fontSize = 14) => {
+      const valueText = `₹${formatCurrency(amount)}`;
+
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(fontSize);
+      pdf.text(valueText, pageWidth - 18, y, { align: "right" });
     };
 
     // Title
@@ -164,9 +171,12 @@ export default function Home() {
     pdf.setFontSize(11);
     pdf.setFont("helvetica", "normal");
     pdf.text(`Duration: ${trip.days?.length || 0} days`, 15, yPosition);
-      yPosition += 8;
-      pdf.text(`Total Budget: ₹${formatCurrency(trip.totalBudget)}`, 15, yPosition);
-    yPosition += 14;
+    yPosition += 8;
+
+    pdf.setFont("helvetica", "normal");
+    pdf.text("Total Budget:", 15, yPosition);
+    drawRightAlignedAmount(trip.totalBudget, yPosition, 15);
+    yPosition += 12;
 
     if (trip.breakdown) {
       pdf.setFontSize(16);
@@ -221,9 +231,7 @@ export default function Home() {
       pdf.setFont("helvetica", "normal");
       pdf.text("Estimated Cost:", 20, yPosition);
       yPosition += 7;
-      pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(14);
-      pdf.text(`₹${formatCurrency(dailyTotal)}`, Math.max(120, pageWidth - 20 - pdf.getTextWidth(`₹${formatCurrency(dailyTotal)}`)), yPosition);
+      drawRightAlignedAmount(dailyTotal, yPosition, 14);
       yPosition += 9;
 
       // Activities
@@ -244,9 +252,7 @@ export default function Home() {
         pdf.setFontSize(9);
         pdf.text("Cost:", 25, yPosition);
         yPosition += 5;
-        pdf.setFont("helvetica", "bold");
-        pdf.setFontSize(12);
-        pdf.text(`₹${formatCurrency(activity.estimatedCost)}`, Math.max(120, pageWidth - 25 - pdf.getTextWidth(`₹${formatCurrency(activity.estimatedCost)}`)), yPosition);
+        drawRightAlignedAmount(activity.estimatedCost, yPosition, 12);
         yPosition += 8;
       });
 
