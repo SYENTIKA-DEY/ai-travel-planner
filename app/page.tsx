@@ -145,14 +145,15 @@ export default function Home() {
       const leftX = 18;
       const labelWidth = pdf.getTextWidth(labelText);
       const rightX = pageWidth - 18 - pdf.getTextWidth(valueText);
+      const valueX = Math.max(rightX, leftX + labelWidth + 12);
 
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(12);
       pdf.text(labelText, leftX, y);
 
-      pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(14);
-      pdf.text(valueText, Math.max(rightX, leftX + labelWidth + 10), y);
+      pdf.setFont("courier", "bold");
+      pdf.setFontSize(16);
+      pdf.text(valueText, valueX, y);
     };
 
     // Title
@@ -223,8 +224,8 @@ export default function Home() {
       pdf.setFont("helvetica", "normal");
       pdf.text("Estimated Cost:", 20, yPosition);
       yPosition += 7;
-      pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(14);
+      pdf.setFont("courier", "bold");
+      pdf.setFontSize(16);
       pdf.text(`₹${formatCurrency(dailyTotal)}`, Math.max(20, pageWidth - 20 - pdf.getTextWidth(`₹${formatCurrency(dailyTotal)}`)), yPosition);
       yPosition += 9;
 
@@ -246,8 +247,8 @@ export default function Home() {
         pdf.setFontSize(9);
         pdf.text("Cost:", 25, yPosition);
         yPosition += 5;
-        pdf.setFont("helvetica", "bold");
-        pdf.setFontSize(13);
+        pdf.setFont("courier", "bold");
+        pdf.setFontSize(14);
         pdf.text(`₹${formatCurrency(activity.estimatedCost)}`, Math.max(25, pageWidth - 25 - pdf.getTextWidth(`₹${formatCurrency(activity.estimatedCost)}`)), yPosition);
         yPosition += 8;
       });
