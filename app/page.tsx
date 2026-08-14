@@ -166,7 +166,9 @@ export default function Home() {
     pdf.text(`Duration: ${trip.days?.length || 0} days`, 15, yPosition);
       yPosition += 8;
       pdf.text(`Total Budget: ₹${formatCurrency(trip.totalBudget)}`, 15, yPosition);
-      yPosition += 14;
+    yPosition += 14;
+
+    if (trip.breakdown) {
       pdf.setFontSize(16);
       pdf.setFont("helvetica", "bold");
       pdf.text("Budget Breakdown", 15, yPosition);
