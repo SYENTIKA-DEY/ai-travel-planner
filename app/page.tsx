@@ -43,6 +43,26 @@ function getBudgetTier(budget: number) {
   return BUDGET_TIERS.luxury;
 }
 
+function toSafeNumber(value: number | string | undefined): number {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  if (typeof value === "string") {
+    const cleaned = value.replace(/,/g, "").replace(/[^0-9.-]/g, "");
+    const parsed = Number(cleaned);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  return 0;
+}
+
+function formatCurrency(value: number | string | undefined): string {
+  return new Intl.NumberFormat("en-IN", {
+    maximumFractionDigits: 0,
+  }).format(toSafeNumber(value));
+}
+
 export default function Home() {
   const [destination, setDestination] = useState("");
   const [budget, setBudget] = useState("");
@@ -130,7 +150,7 @@ export default function Home() {
     pdf.setFont("helvetica", "normal");
     pdf.text(`Duration: ${trip.days?.length || 0} days`, 15, yPosition);
     yPosition += 7;
-    pdf.text(`Total Budget: ₹${trip.totalBudget?.toLocaleString("en-IN")}`, 15, yPosition);
+    pdf.text(`Total Budget: ₹${formatCurrency(trip.totalBudget)}`, 15, yPosition);
     yPosition += 12;
 
     // Budget Breakdown
@@ -143,10 +163,10 @@ export default function Home() {
       pdf.setFontSize(10);
       pdf.setFont("helvetica", "normal");
       const breakdown = [
-        `Accommodation: ₹${trip.breakdown.accommodation?.toLocaleString("en-IN") || 0}`,
-        `Food: ₹${trip.breakdown.food?.toLocaleString("en-IN") || 0}`,
-        `Activities: ₹${trip.breakdown.activities?.toLocaleString("en-IN") || 0}`,
-        `Transport: ₹${trip.breakdown.transport?.toLocaleString("en-IN") || 0}`,
+        `Accommodation: ₹${formatCurrency(trip.breakdown.accommodation)}`,
+        `Food: ₹${formatCurrency(trip.breakdown.food)}`,
+        `Activities: ₹${formatCurrency(trip.breakdown.activities)}`,
+        `Transport: ₹${formatCurrency(trip.breakdown.transport)}`,
       ];
 
       breakdown.forEach((line) => {
@@ -154,8 +174,9 @@ export default function Home() {
           pdf.addPage();
           yPosition = 15;
         }
-        pdf.text(line, 20, yPosition);
-        yPosition += 6;
+        const wrappedLines = pdf.splitTextToSize(line, 170);
+        pdf.text(wrappedLines, 20, yPosition);
+        yPosition += wrappedLines.length * 6;
       });
     }
 
@@ -183,7 +204,7 @@ export default function Home() {
 
       pdf.setFontSize(10);
       pdf.setFont("helvetica", "normal");
-      pdf.text(`Estimated Cost: ₹${dailyTotal.toLocaleString("en-IN")}`, 20, yPosition);
+      pdf.text(`Estimated Cost: ₹${formatCurrency(dailyTotal)}`, 20, yPosition);
       yPosition += 7;
 
       // Activities
@@ -195,12 +216,14 @@ export default function Home() {
 
         pdf.setFont("helvetica", "bold");
         pdf.setFontSize(10);
-        pdf.text(`${activity.time} - ${activity.activity}`, 20, yPosition);
-        yPosition += 6;
+        const activityLine = `${activity.time} - ${activity.activity}`;
+        const wrappedActivity = pdf.splitTextToSize(activityLine, 170);
+        pdf.text(wrappedActivity, 20, yPosition);
+        yPosition += wrappedActivity.length * 6;
 
         pdf.setFont("helvetica", "normal");
         pdf.setFontSize(9);
-        pdf.text(`Cost: ₹${activity.estimatedCost?.toLocaleString("en-IN") || 0}`, 25, yPosition);
+        pdf.text(`Cost: ₹${formatCurrency(activity.estimatedCost)}`, 25, yPosition);
         yPosition += 6;
       });
 
@@ -374,8 +397,8 @@ export default function Home() {
                   <h2 className="text-4xl sm:text-5xl font-serif font-bold text-foreground">
                     {trip.destination}
                   </h2>
-                  <p className="text-text-light mt-2">
-                    {trip.days?.length || 0} days • ₹{trip.totalBudget?.toLocaleString('en-IN')}
+                  <p className="text-text-light mt-2 break-words">
+                    {trip.days?.length || 0} days • ₹{formatCurrency(trip.totalBudget)}
                   </p>
                 </div>
                 <div className="flex gap-3">
@@ -410,18 +433,24 @@ export default function Home() {
                       { label: "Food", value: trip.breakdown.food, icon: "🍽️" },
                       { label: "Activities", value: trip.breakdown.activities, icon: "🎭" },
                       { label: "Transport", value: trip.breakdown.transport, icon: "🚗" },
-                    ].map((item) => (
-                      <div key={item.label} className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 text-center">
-                        <div className="text-3xl mb-2">{item.icon}</div>
-                        <p className="text-sm text-text-light mb-2">{item.label}</p>
-                        <p className="text-2xl font-bold text-primary-terracotta">
-                          ₹{item.value.toLocaleString('en-IN')}
-                        </p>
-                        <p className="text-xs text-text-light mt-2">
-                          {Math.round((item.value / trip.totalBudget) * 100)}% of total
-                        </p>
-                      </div>
-                    ))}
+                    ].map((item) => {
+                      const safeValue = toSafeNumber(item.value);
+                      const totalBudget = toSafeNumber(trip.totalBudget);
+                      const percent = totalBudget > 0 ? Math.round((safeValue / totalBudget) * 100) : 0;
+
+                      return (
+                        <div key={item.label} className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 text-center min-w-0 overflow-hidden">
+                          <div className="text-3xl mb-2">{item.icon}</div>
+                          <p className="text-sm text-text-light mb-2">{item.label}</p>
+                          <p className="text-xl sm:text-2xl font-bold text-primary-terracotta break-all leading-tight">
+                            ₹{formatCurrency(safeValue)}
+                          </p>
+                          <p className="text-xs text-text-light mt-2">
+                            {percent}% of total
+                          </p>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -459,8 +488,8 @@ export default function Home() {
                                   {dayData.theme}
                                 </div>
                               )}
-                              <div className={`text-xs font-medium ${activeDay === idx ? "text-white/90" : "text-gray-600"}`}>
-                                ₹{dailyTotal.toLocaleString("en-IN")}
+                              <div className={`text-xs font-medium break-all ${activeDay === idx ? "text-white/90" : "text-gray-600"}`}>
+                                ₹{formatCurrency(dailyTotal)}
                               </div>
                             </div>
                           </div>
@@ -495,8 +524,8 @@ export default function Home() {
                           {tripData.theme}
                         </p>
                       )}
-                      <p className="text-lg text-text-light mt-3 font-semibold">
-                        💰 Estimated: ₹{totalDailyCost.toLocaleString('en-IN')}
+                      <p className="text-lg text-text-light mt-3 font-semibold break-words">
+                        💰 Estimated: ₹{formatCurrency(totalDailyCost)}
                       </p>
                     </div>
                   </div>
@@ -510,15 +539,15 @@ export default function Home() {
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-3">
+                              <div className="flex items-center gap-3 mb-3 flex-wrap">
                                 <span className="text-lg font-bold px-4 py-2 rounded-xl bg-gradient-to-r from-primary-terracotta to-orange-400 text-white shadow-md">
                                   {activity.time}
                                 </span>
-                                <span className="text-sm font-bold text-primary-terracotta bg-yellow-50 px-4 py-2 rounded-lg">
-                                  ₹{activity.estimatedCost.toLocaleString('en-IN')}
+                                <span className="text-sm font-bold text-primary-terracotta bg-yellow-50 px-4 py-2 rounded-lg break-all">
+                                  ₹{formatCurrency(activity.estimatedCost)}
                                 </span>
                               </div>
-                              <p className="text-xl font-bold text-foreground leading-relaxed">{activity.activity}</p>
+                              <p className="text-xl font-bold text-foreground leading-relaxed break-words">{activity.activity}</p>
                             </div>
                           </div>
                         </div>
