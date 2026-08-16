@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { supabase } from "@/lib/supabase";
@@ -79,10 +80,6 @@ export default function Home() {
 
   // Auth state
   const [user, setUser] = useState<User | null>(null);
-  const [authEmail, setAuthEmail] = useState("");
-  const [authPassword, setAuthPassword] = useState("");
-  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
-  const [authError, setAuthError] = useState("");
 
   const budgetNum = budget ? Number(budget) : 0;
   const budgetTier = getBudgetTier(budgetNum);
@@ -94,16 +91,6 @@ export default function Home() {
     });
     return () => listener.subscription.unsubscribe();
   }, []);
-
-  async function handleAuth(e: React.FormEvent) {
-    e.preventDefault();
-    setAuthError("");
-    const { error } =
-      authMode === "login"
-        ? await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword })
-        : await supabase.auth.signUp({ email: authEmail, password: authPassword });
-    if (error) setAuthError(error.message);
-  }
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -319,46 +306,20 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-accent-cream via-background to-accent-cream">
-      {!user ? (
-        <div className="max-w-sm mx-auto mt-8 bg-white/80 rounded-xl p-6 shadow">
-          <form onSubmit={handleAuth} className="space-y-3">
-            <input
-              type="email"
-              placeholder="Email"
-              value={authEmail}
-              onChange={(e) => setAuthEmail(e.target.value)}
-              className="w-full px-3 py-2 border rounded"
-              required
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              value={authPassword}
-              onChange={(e) => setAuthPassword(e.target.value)}
-              className="w-full px-3 py-2 border rounded"
-              required
-            />
-            <button type="submit" className="w-full bg-primary-terracotta text-white py-2 rounded">
-              {authMode === "login" ? "Log In" : "Sign Up"}
+      <div className="flex justify-end px-6 pt-4">
+        {!user ? (
+          <Link href="/login" className="text-sm font-semibold text-primary-terracotta underline">
+            Log in or sign up
+          </Link>
+        ) : (
+          <div className="text-sm text-text-light">
+            Logged in as <span className="font-medium">{user.email}</span>
+            <button onClick={handleLogout} className="ml-3 text-primary-terracotta underline">
+              Log out
             </button>
-            {authError && <p className="text-red-600 text-sm">{authError}</p>}
-            <button
-              type="button"
-              onClick={() => setAuthMode(authMode === "login" ? "signup" : "login")}
-              className="text-sm text-primary-teal underline w-full"
-            >
-              {authMode === "login" ? "Need an account? Sign up" : "Have an account? Log in"}
-            </button>
-          </form>
-        </div>
-      ) : (
-        <div className="text-center pt-4">
-          <span className="text-sm text-text-light">Logged in as {user.email}</span>
-          <button onClick={handleLogout} className="ml-3 text-sm text-primary-terracotta underline">
-            Log out
-          </button>
-        </div>
-      )}
+          </div>
+        )}
+      </div>
 
       {!trip ? (
         <>
