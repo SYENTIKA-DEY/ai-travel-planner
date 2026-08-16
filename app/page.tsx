@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { supabase } from "@/lib/supabase";
+import type { User } from "@supabase/supabase-js";
 
 type TripStyle = "relaxed" | "adventure" | "culture" | "luxury";
 
@@ -64,6 +66,7 @@ function formatCurrency(value: number | string | undefined): string {
 }
 
 export default function Home() {
+  // Trip generation state
   const [destination, setDestination] = useState("");
   const [budget, setBudget] = useState("");
   const [days, setDays] = useState("");
@@ -74,8 +77,37 @@ export default function Home() {
   const [activeDay, setActiveDay] = useState(0);
   const saveButtonRef = useRef<HTMLButtonElement>(null);
 
+  // Auth state
+  const [user, setUser] = useState<User | null>(null);
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+  const [authError, setAuthError] = useState("");
+
   const budgetNum = budget ? Number(budget) : 0;
   const budgetTier = getBudgetTier(budgetNum);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  async function handleAuth(e: React.FormEvent) {
+    e.preventDefault();
+    setAuthError("");
+    const { error } =
+      authMode === "login"
+        ? await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword })
+        : await supabase.auth.signUp({ email: authEmail, password: authPassword });
+    if (error) setAuthError(error.message);
+  }
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -99,15 +131,14 @@ export default function Home() {
 
       const data = await res.json();
       console.log("API Response:", data);
-      
-      // Ensure days is an array
+
       const normalizedTrip: Trip = {
         destination: data.destination || destination,
         days: Array.isArray(data.days) ? data.days : [],
         totalBudget: data.totalBudget || Number(budget),
         breakdown: data.breakdown,
       };
-      
+
       console.log("Normalized Trip:", normalizedTrip);
       setTrip(normalizedTrip);
       setActiveDay(0);
@@ -263,6 +294,23 @@ export default function Home() {
     pdf.save(`${trip.destination}-trip.pdf`);
   }
 
+  async function saveTripToDatabase() {
+    if (!trip || !user) return;
+    const { error } = await supabase.from("trips").insert({
+      destination: trip.destination,
+      total_budget: trip.totalBudget,
+      days: trip.days,
+      breakdown: trip.breakdown,
+      user_id: user.id,
+    });
+    if (error) {
+      console.error(error);
+      setError("Failed to save trip");
+    } else {
+      alert("Trip saved!");
+    }
+  }
+
   const tripData = trip?.days?.[activeDay];
   const totalDailyCost = tripData?.activities?.reduce(
     (sum, a) => sum + (a.estimatedCost || 0),
@@ -271,6 +319,47 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-accent-cream via-background to-accent-cream">
+      {!user ? (
+        <div className="max-w-sm mx-auto mt-8 bg-white/80 rounded-xl p-6 shadow">
+          <form onSubmit={handleAuth} className="space-y-3">
+            <input
+              type="email"
+              placeholder="Email"
+              value={authEmail}
+              onChange={(e) => setAuthEmail(e.target.value)}
+              className="w-full px-3 py-2 border rounded"
+              required
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              value={authPassword}
+              onChange={(e) => setAuthPassword(e.target.value)}
+              className="w-full px-3 py-2 border rounded"
+              required
+            />
+            <button type="submit" className="w-full bg-primary-terracotta text-white py-2 rounded">
+              {authMode === "login" ? "Log In" : "Sign Up"}
+            </button>
+            {authError && <p className="text-red-600 text-sm">{authError}</p>}
+            <button
+              type="button"
+              onClick={() => setAuthMode(authMode === "login" ? "signup" : "login")}
+              className="text-sm text-primary-teal underline w-full"
+            >
+              {authMode === "login" ? "Need an account? Sign up" : "Have an account? Log in"}
+            </button>
+          </form>
+        </div>
+      ) : (
+        <div className="text-center pt-4">
+          <span className="text-sm text-text-light">Logged in as {user.email}</span>
+          <button onClick={handleLogout} className="ml-3 text-sm text-primary-terracotta underline">
+            Log out
+          </button>
+        </div>
+      )}
+
       {!trip ? (
         <>
           {/* Hero Section */}
@@ -448,6 +537,12 @@ export default function Home() {
                   >
                     💾 Save Trip
                   </button>
+                  <button
+                    onClick={saveTripToDatabase}
+                    className="px-6 py-3 rounded-lg border-2 border-primary-terracotta text-primary-terracotta hover:bg-primary-terracotta hover:text-white transition font-medium"
+                  >
+                    Save to My Trips
+                  </button>
                 </div>
               </div>
 
@@ -504,8 +599,8 @@ export default function Home() {
                         >
                           <div className="flex items-center gap-3">
                             <span className={`text-2xl font-bold ${
-                              activeDay === idx 
-                                ? "text-white" 
+                              activeDay === idx
+                                ? "text-white"
                                 : "bg-gradient-to-r from-primary-terracotta to-primary-teal bg-clip-text text-transparent"
                             }`}>
                               Day {idx + 1}
