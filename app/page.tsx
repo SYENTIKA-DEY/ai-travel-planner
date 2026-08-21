@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { supabase } from "@/lib/supabase";
@@ -67,6 +68,8 @@ function formatCurrency(value: number | string | undefined): string {
 }
 
 export default function Home() {
+  const router = useRouter();
+
   // Trip generation state
   const [destination, setDestination] = useState("");
   const [budget, setBudget] = useState("");
@@ -80,17 +83,23 @@ export default function Home() {
 
   // Auth state
   const [user, setUser] = useState<User | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
 
   const budgetNum = budget ? Number(budget) : 0;
   const budgetTier = getBudgetTier(budgetNum);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user);
+      setAuthChecked(true);
+      if (!data.user) router.replace("/login");
+    });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      if (!session) router.replace("/login");
     });
     return () => listener.subscription.unsubscribe();
-  }, []);
+  }, [router]);
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -98,14 +107,28 @@ export default function Home() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+
     setLoading(true);
     setError("");
     setTrip(null);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.replace("/login");
+        return;
+      }
+
       const res = await fetch("/api/generate-trip", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify({
           destination,
           budget: Number(budget),
@@ -303,6 +326,8 @@ export default function Home() {
     (sum, a) => sum + (a.estimatedCost || 0),
     0
   ) || 0;
+
+  if (!authChecked || !user) return null;
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-accent-cream via-background to-accent-cream">

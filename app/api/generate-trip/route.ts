@@ -1,9 +1,29 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { generateTrip } from "../lib/gemini";
 import { validateTripRequest } from "../lib/validation";
 
 export async function POST(req: Request) {
   try {
+    const authorization = req.headers.get("authorization");
+    const accessToken = authorization?.startsWith("Bearer ")
+      ? authorization.slice("Bearer ".length)
+      : null;
+
+    if (!accessToken) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
+
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
+
+    if (authError || !user) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
+
     // Parse request body
     const body = await req.json();
 
